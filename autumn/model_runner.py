@@ -1081,10 +1081,16 @@ class ModelRunner:
         self.add_comment_to_gui_window(
             'The best value found for {} is {}'.format(params_to_calibrate, best_param_value))
 
-    def run_spending_inputs(self):
+    def run_spending_inputs(self, spending_plan=None):
         """
             Run a scenario defined by economic inputs entered in spreadsheet.
+
+            Args:
+            spending_plan: if None, the spending plan is obtained from the spreadsheet "spending_inputs_[country].xlsx"
+                           otherwise: a dictionary similar to self.inputs.original_data['spending_inputs']
         """
+        if spending_plan is not None:
+            self.inputs.original_data['spending_inputs'] = spending_plan
         self.models[17] = model.ConsolidatedModel(0, self.inputs, self.gui_inputs,
                                                                  self.gui_console_fn)
         self.prepare_new_model_from_baseline(17)
