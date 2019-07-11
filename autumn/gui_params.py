@@ -151,10 +151,10 @@ def get_autumn_params():
         'write_uncertainty_outcome_params',
         # 'output_param_plots',
         # 'output_likelihood_plot',
-        'is_shortcourse_improves_outcomes',
+        # 'is_shortcourse_improves_outcomes',
         # 'plot_option_plot_all_vars',
-        'is_amplification',
-        'is_misassignment',
+        # 'is_amplification',
+        # 'is_misassignment',
         # 'is_lowquality',
         'is_vary_detection_by_organ',
         #'is_include_relapse_in_ds_outcomes',
@@ -168,9 +168,10 @@ def get_autumn_params():
         'output_compartment_populations',
         # 'riskgroup_ruralpoor',
         'output_epi_plots',
-        'is_vary_force_infection_by_riskgroup',   # heterpgeneous mixing
-        # 'riskgroup_diabetes',
-        'riskgroup_dorm'
+        # 'is_vary_force_infection_by_riskgroup',
+        # heterpgeneous mixing
+        'riskgroup_diabetes',
+        # 'riskgroup_dorm'
         # 'riskgroup_hiv',
         # 'riskgroup_indigenous',
         # 'is_timevariant_organs'
@@ -185,8 +186,8 @@ def get_autumn_params():
             params[param]['value'] = params[param]['options'][0]
     params['fitting_method']['value'] = params['fitting_method']['options'][-1]
     params['integration_method']['value'] = params['integration_method']['options'][1]
-    params['strains']['value'] = params['strains']['options'][1]
-    params['country']['value'] = 'Bhutan'
+    # params['strains']['value'] = params['strains']['options'][1]
+    params['country']['value'] = 'Fiji'
 
     ''' parameter groupings '''
 

@@ -85,7 +85,7 @@ objective_option = 1  # 1 to optimise the funding allocation / 2 to calibrate th
 
 if objective_option == 1:
     annual_budget = 1.e6  # total budget available every year
-    tb_indicator = "incidence"   # could be "mortality" or "prevalence" or "notifications"
+    tb_indicator = "prevalence"   # could be "mortality" or "prevalence" or "notifications"
     baseline_m_r.inputs.run_mode = 'spending_inputs'
 
     def objective_1(funding):
@@ -103,7 +103,7 @@ if objective_option == 1:
 
         # Create a spending_plan dictionary formatted to match model requirements
         spending_plan = {}
-        for key, val in funding.iteritems():
+        for key, val in funding.items():
             spending_plan[key] = {}
             for year in range(
                             int(baseline_m_r.inputs.original_data['default_constants']['before_intervention_time']) - 1,
@@ -111,20 +111,31 @@ if objective_option == 1:
                 spending_plan[key][year] = val * annual_budget
 
         # run model from 2014 until 2035 with funding driving the epidemic
+        print(spending_plan)
         baseline_m_r.run_spending_inputs(spending_plan)
         # read the output of interest
         outcome = baseline_m_r.outputs['manual']['epi'][17][tb_indicator][-1]
         return outcome
 
     # example parameter set
-    funding_test = {'int_perc_ipt_age0to5': 0.2,
-                    'int_perc_ipt_age5to15': 0.1,
-                    'int_perc_xpertacf': 0.2,
-                    'int_perc_decentralisation': 0.2,
+    funding_test = {'int_perc_ipt_age0to5': 0.1,
+                    'int_perc_ipt_age5to15': 0.9,
+                    'int_perc_xpertacf': 0.,
+                    'int_perc_decentralisation': 0.,
+                    'int_perc_treatment_support_relative': 0.,
+                    'int_perc_xpert': 0.
+                    }
+    funding_test_2 = {'int_perc_ipt_age0to5': 0.,
+                    'int_perc_ipt_age5to15': 0.,
+                    'int_perc_xpertacf': 0.,
+                    'int_perc_decentralisation': 0.,
                     'int_perc_treatment_support_relative': 0.2,
-                    'int_perc_xpert': 0.1
+                    'int_perc_xpert': 0.8
                     }
     objective = objective_1(funding_test)
+    objective_2 = objective_1(funding_test_2)
+
+
 elif objective_option == 2:
 
 
@@ -174,3 +185,4 @@ else:
     print("Objective option not recognised")
 
 print(objective)
+print(objective_2)

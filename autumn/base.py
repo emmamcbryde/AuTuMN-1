@@ -312,6 +312,8 @@ class BaseModel:
                     match = match + 1
 
         prop_ageing_diabetes = 0.082  # provisional hard-code for Bulgaria
+        prop_ageing_diabetes = 0.1  # provisional hard-code for Fiji
+
         prop_ageing_prison = 0.0014  # provisional hard-code for Bulgaria
 
         prop_ageing_dorm = 0.415  # provisional hard-code for Bhutan
@@ -331,7 +333,9 @@ class BaseModel:
                         relevant_prop_ageing = prop_ageing_dorm
                     else:
                         splitting_riskgroup = '_diabetes'
-                        print("Warning: Hard code currently implemented for Bulgaria and Bhutan only")
+                        relevant_prop_ageing = prop_ageing_diabetes
+
+                        # print("Warning: Hard code currently implemented for Bulgaria and Bhutan only")
 
                     if splitting_riskgroup in to_label:
                         add_unique_tuple_to_list(self.flows_by_type['fixed_transfer'],
