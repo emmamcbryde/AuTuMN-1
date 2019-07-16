@@ -1494,7 +1494,7 @@ class TbRunner(ModelRunner):
             = {'incidence': 1e5,
                'mortality': 1e5}
         self.non_disease_compartment_strings \
-            = ['susceptible', 'latent']
+            = ['susceptible', 'latent', 'onipt']
 
         # uncertainty adjustments
         self.outputs['epi_uncertainty'] \

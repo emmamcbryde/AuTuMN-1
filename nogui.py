@@ -33,7 +33,7 @@ standard_gui_outputs = {'is_shortcourse_improves_outcomes': True, 'pickle_uncert
                'age_breakpoints': [5, 15, 25], 'riskgroup_indigenous': False, 'integration_method': 'Explicit',
                'plot_option_overlay_targets': True, 'scenario_6': False, 'plot_option_vars_two_panels': True,
                'time_step': 0.5, 'is_adjust_population': True, 'plot_option_overlay_gtb': True,
-               'comorbidity_to_increment': 'Diabetes', 'output_scaleups': True, 'output_param_plots': False,
+               'comorbidity_to_increment': 'Diabetes', 'output_scaleups': False, 'output_param_plots': False,
                'country': 'Fiji', 'is_lowquality': False, 'is_vary_detection_by_riskgroup': False,
                'is_include_hiv_treatment_outcomes': True, 'search_width': 0.05, 'n_centiles_for_shading': 100,
                'fitting_method': 'Method 5', 'n_samples': 20, 'riskgroup_prison': False,
@@ -47,9 +47,9 @@ standard_gui_outputs = {'is_shortcourse_improves_outcomes': True, 'pickle_uncert
                'is_timevariant_organs': False, 'write_uncertainty_outcome_params': True, 'riskgroup_hiv': False,
                'is_treatment_history': True, 'output_spreadsheets': False,
                'uncertainty_intervention': 'int_prop_treatment_support_relative', 'uncertainty_runs': 2,
-               'output_by_scenario': False, 'burn_in_runs': 0, 'output_compartment_populations': True,
+               'output_by_scenario': False, 'burn_in_runs': 0, 'output_compartment_populations': False,
                'plot_option_title': True, 'strains': 'Single strain', 'output_likelihood_plot': False,
-               'output_epi_plots': True, 'scenario_11': False, 'output_plot_economics': False,
+               'output_epi_plots': False, 'scenario_11': False, 'output_plot_economics': False,
                'is_amplification': False, 'riskgroup_diabetes': True, 'is_vary_detection_by_organ': True,
                'plot_option_plot_all_vars': False}
 
@@ -118,22 +118,65 @@ if objective_option == 1:
         return outcome
 
     # example parameter set
-    funding_test = {'int_perc_ipt_age0to5': 0.1,
-                    'int_perc_ipt_age5to15': 0.9,
+    funding_test = {'int_perc_ipt_age0to5': 0.,
+                    'int_perc_ipt': 0.,
                     'int_perc_xpertacf': 0.,
                     'int_perc_decentralisation': 0.,
                     'int_perc_treatment_support_relative': 0.,
-                    'int_perc_xpert': 0.
+                    'int_perc_awareness_raising': 0.
+                    }
+    funding_test_1 = {'int_perc_ipt_age0to5': 0.2,
+                    'int_perc_ipt': 0.,
+                    'int_perc_xpertacf': 0.,
+                    'int_perc_decentralisation': 0.,
+                    'int_perc_treatment_support_relative': 0.,
+                    'int_perc_awareness_raising': 0.
                     }
     funding_test_2 = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt_age5to15': 0.,
+                    'int_perc_ipt': 0.2,
+                    'int_perc_xpertacf': 0.,
+                    'int_perc_decentralisation': 0.,
+                    'int_perc_treatment_support_relative': 0.,
+                    'int_perc_awareness_raising': 0.
+                    }
+
+    funding_test_3 = {'int_perc_ipt_age0to5': 0.,
+                    'int_perc_ipt': 0.,
+                    'int_perc_xpertacf': 0.2,
+                    'int_perc_decentralisation': 0.,
+                    'int_perc_treatment_support_relative': 0.,
+                    'int_perc_awareness_raising': 0.
+                    }
+    funding_test_4 = {'int_perc_ipt_age0to5': 0.,
+                    'int_perc_ipt': 0.,
+                    'int_perc_xpertacf': 0.,
+                    'int_perc_decentralisation': 0.2,
+                    'int_perc_treatment_support_relative': 0.,
+                    'int_perc_awareness_raising': 0.
+                    }
+    funding_test_5 = {'int_perc_ipt_age0to5': 0.,
+                    'int_perc_ipt': 0.,
                     'int_perc_xpertacf': 0.,
                     'int_perc_decentralisation': 0.,
                     'int_perc_treatment_support_relative': 0.2,
-                    'int_perc_xpert': 0.8
+                    'int_perc_awareness_raising': 0.
                     }
+
+    funding_test_6 = {'int_perc_ipt_age0to5': 0.,
+                        'int_perc_ipt': 0.,
+                        'int_perc_xpertacf': 0.,
+                        'int_perc_decentralisation': 0.,
+                        'int_perc_treatment_support_relative': 0.,
+                        'int_perc_awareness_raising': 0.2
+                        }
+
     objective = objective_1(funding_test)
-    objective_2 = objective_1(funding_test_2)
+    objective_01 = objective_1(funding_test_1)
+    objective_02 = objective_1(funding_test_2)
+    objective_03 = objective_1(funding_test_3)
+    objective_04 = objective_1(funding_test_4)
+    objective_05 = objective_1(funding_test_5)
+    objective_06 = objective_1(funding_test_6)
 
 
 elif objective_option == 2:
@@ -184,5 +227,10 @@ elif objective_option == 2:
 else:
     print("Objective option not recognised")
 
-print(objective)
-print(objective_2)
+print('objective: ' + str(objective))
+print('objective 1: ' + str(objective_01))
+print('objective 2: ' + str(objective_02))
+print('objective 3: ' + str(objective_03))
+print('objective 4: ' + str(objective_04))
+print('objective 5: ' + str(objective_05))
+print('objective 6: ' + str(objective_06))

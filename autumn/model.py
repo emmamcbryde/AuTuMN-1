@@ -494,9 +494,7 @@ class ConsolidatedModel(StratifiedModel, EconomicModel):
         # of these two interventions
         relative_detect_rate \
             = {'_smearpos': 1.,
-               '_smearneg': 1. - (1. - self.params['program_prop_snep_relative_algorithm'])
-                * (1. - self.vars['int_prop_xpert'] * self.params['int_prop_xpert_smearneg_sensitivity'])
-                * (1. - self.vars['program_prop_culture_coverage'] * self.params['program_prop_smearneg_culturable']),
+               '_smearneg': 1. - (1. - self.params['program_prop_snep_relative_algorithm']) * (1. - self.vars['int_prop_xpert'] * self.params['int_prop_xpert_smearneg_sensitivity']) * (1. - self.vars['program_prop_culture_coverage'] * self.params['program_prop_smearneg_culturable']),
                '_extrapul': self.params['program_prop_snep_relative_algorithm']}
 
         for parameter in ['_detect', '_algorithm_sensitivity']:
@@ -1213,6 +1211,14 @@ class ConsolidatedModel(StratifiedModel, EconomicModel):
                 for from_label, to_label, rate in self.flows_by_type['var_transfer']:
                     if 'latent_early' in to_label and strain in to_label and agegroup in to_label:
                         self.vars['popsize_ipt' + agegroup] += self.compartments[from_label] * self.vars[rate]
+
+        self.vars['popsize_ipt'] = 0.
+        for strain in self.strains:
+            for from_label, to_label, rate in self.flows_by_type['var_transfer']:
+                if 'latent_early' in to_label and strain in to_label:
+                    self.vars['popsize_ipt'] += self.compartments[from_label] * self.vars[rate]
+
+
 
         # BCG (so simple that it's almost unnecessary, but needed for loops over int names)
         self.vars['popsize_vaccination'] = self.vars['births_total']
