@@ -118,65 +118,17 @@ if objective_option == 1:
         return outcome
 
     # example parameter set
-    funding_test = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt': 0.,
-                    'int_perc_xpertacf': 0.,
-                    'int_perc_decentralisation': 0.,
-                    'int_perc_treatment_support_relative': 0.,
-                    'int_perc_awareness_raising': 0.
+    funding_test = {'int_perc_ipt_age0to5': .2,
+                    'int_perc_ipt_age5to15': .2,
+                    'int_perc_ipt_age15to25': .1,
+                    'int_perc_ipt_age25up': .1,
+                    'int_perc_xpertacf': .1,
+                    'int_perc_decentralisation': .1,
+                    'int_perc_treatment_support_relative': .1,
+                    'int_perc_awareness_raising': .1
                     }
-    funding_test_1 = {'int_perc_ipt_age0to5': 0.2,
-                    'int_perc_ipt': 0.,
-                    'int_perc_xpertacf': 0.,
-                    'int_perc_decentralisation': 0.,
-                    'int_perc_treatment_support_relative': 0.,
-                    'int_perc_awareness_raising': 0.
-                    }
-    funding_test_2 = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt': 0.2,
-                    'int_perc_xpertacf': 0.,
-                    'int_perc_decentralisation': 0.,
-                    'int_perc_treatment_support_relative': 0.,
-                    'int_perc_awareness_raising': 0.
-                    }
-
-    funding_test_3 = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt': 0.,
-                    'int_perc_xpertacf': 0.2,
-                    'int_perc_decentralisation': 0.,
-                    'int_perc_treatment_support_relative': 0.,
-                    'int_perc_awareness_raising': 0.
-                    }
-    funding_test_4 = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt': 0.,
-                    'int_perc_xpertacf': 0.,
-                    'int_perc_decentralisation': 0.2,
-                    'int_perc_treatment_support_relative': 0.,
-                    'int_perc_awareness_raising': 0.
-                    }
-    funding_test_5 = {'int_perc_ipt_age0to5': 0.,
-                    'int_perc_ipt': 0.,
-                    'int_perc_xpertacf': 0.,
-                    'int_perc_decentralisation': 0.,
-                    'int_perc_treatment_support_relative': 0.2,
-                    'int_perc_awareness_raising': 0.
-                    }
-
-    funding_test_6 = {'int_perc_ipt_age0to5': 0.,
-                        'int_perc_ipt': 0.,
-                        'int_perc_xpertacf': 0.,
-                        'int_perc_decentralisation': 0.,
-                        'int_perc_treatment_support_relative': 0.,
-                        'int_perc_awareness_raising': 0.2
-                        }
 
     objective = objective_1(funding_test)
-    objective_01 = objective_1(funding_test_1)
-    objective_02 = objective_1(funding_test_2)
-    objective_03 = objective_1(funding_test_3)
-    objective_04 = objective_1(funding_test_4)
-    objective_05 = objective_1(funding_test_5)
-    objective_06 = objective_1(funding_test_6)
 
 
 elif objective_option == 2:
@@ -228,9 +180,4 @@ else:
     print("Objective option not recognised")
 
 print('objective: ' + str(objective))
-print('objective 1: ' + str(objective_01))
-print('objective 2: ' + str(objective_02))
-print('objective 3: ' + str(objective_03))
-print('objective 4: ' + str(objective_04))
-print('objective 5: ' + str(objective_05))
-print('objective 6: ' + str(objective_06))
+
