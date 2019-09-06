@@ -192,7 +192,7 @@ class Inputs:
                'detect', 'missed', 'treatment_infect', 'treatment_noninfect']
         self.interventions_available_for_costing \
             = ['vaccination', 'xpert', 'treatment_support_relative', 'treatment_support_absolute', 'smearacf',
-               'xpertacf', 'ipt_age0to5', 'ipt_age5to15', 'decentralisation', 'improve_dst', 'bulgaria_improve_dst',
+               'xpertacf', 'ipt_age0to5', 'ipt_age5to15', 'ipt_age15to25', 'ipt_age25up', 'decentralisation', 'improve_dst', 'bulgaria_improve_dst',
                'firstline_dst', 'intensive_screening', 'ipt_age15up', 'dot_groupcontributor', 'awareness_raising']
         self.available_strains = ['_ds', '_mdr', '_xdr']
         self.intervention_param_dict \
