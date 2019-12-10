@@ -299,7 +299,8 @@ def build_interim_mongolia_model(update_params={}):
 
 def build_mongolia_model(update_params={}):
 
-    stratify_by = ['age', 'location', 'organ', 'strain']
+    # stratify_by = ['age']
+    stratify_by = ['age', 'organ']
 
     # some default parameter values
     external_params = {  # run configuration
@@ -308,7 +309,7 @@ def build_mongolia_model(update_params={}):
                        'time_step': 1.,
                        'start_population': 3000000,
                        # base model definition:
-                       'contact_rate': 1.,
+                       'contact_rate': 16.,
                        'rr_transmission_recovered': .63,
                        'rr_transmission_infected': 0.21,
                        'latency_adjustment': 2.,  # used to modify progression rates during calibration
@@ -417,13 +418,13 @@ def build_mongolia_model(update_params={}):
 
         return infectious_populations / float(n_early_latent_comps)
 
-    _tb_model.add_transition_flow(
-        {"type": "customised_flows", "parameter": "ipt_rate", "origin": "early_latent", "to": "recovered",
-         "function": ipt_flow_func})
-
-    # add ACF flow
-    _tb_model.add_transition_flow(
-        {"type": "standard_flows", "parameter": "acf_rate", "origin": "infectious", "to": "recovered"})
+    # _tb_model.add_transition_flow(
+    #     {"type": "customised_flows", "parameter": "ipt_rate", "origin": "early_latent", "to": "recovered",
+    #      "function": ipt_flow_func})
+    #
+    # # add ACF flow
+    # _tb_model.add_transition_flow(
+    #     {"type": "standard_flows", "parameter": "acf_rate", "origin": "infectious", "to": "recovered"})
 
     # load time-variant case detection rate
     cdr_scaleup = build_mongolia_timevariant_cdr()
@@ -498,12 +499,12 @@ def build_mongolia_model(update_params={}):
         for stratum in ["smearpos", "smearneg", "extrapul"]:
             diagnostic_sensitivity[stratum] = external_params["diagnostic_sensitivity_" + stratum]
         _tb_model.stratify("organ", ["smearpos", "smearneg", "extrapul"], ["infectious"],
-                           infectiousness_adjustments={"smearpos": 1., "smearneg": 0.25, "extrapul": 0.},
+                           # infectiousness_adjustments={"smearpos": 1., "smearneg": 0.25, "extrapul": 0.},
                            verbose=False, requested_proportions=props_smear,
-                           adjustment_requests={'recovery': recovery_adjustments,
-                                                'infect_death': mortality_adjustments,
-                                                'case_detection': diagnostic_sensitivity},
-                           entry_proportions=props_smear)
+                           # adjustment_requests={'recovery': recovery_adjustments,
+                           #                      'infect_death': mortality_adjustments,
+                           #                      'case_detection': diagnostic_sensitivity},
+                           )
 
     if "age" in stratify_by:
         age_breakpoints = [0, 5, 15, 60]
@@ -681,7 +682,7 @@ if __name__ == "__main__":
                     'prevXinfectiousXstrain_mdrXamong': 'Prevalence of MDR-TB (/100,000)'
                     }
 
-    create_multi_scenario_outputs(models, req_outputs=req_outputs, out_dir='test_25_11', targets_to_plot=targets_to_plot,
+    create_multi_scenario_outputs(models, req_outputs=req_outputs, out_dir='debug_outputs_11_12', targets_to_plot=targets_to_plot,
                                   req_multipliers=multipliers, translation_dictionary=translations,
                                   scenario_list=scenario_list)
 
