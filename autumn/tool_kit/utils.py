@@ -7,6 +7,7 @@ import numpy
 import itertools
 import hashlib
 import json
+from datetime import date
 
 from summer.model import find_name_components
 
@@ -206,9 +207,13 @@ def repeat_list_elements(repetitions, list_to_repeat):
     )
 
 
-def split_parameter(adjustment_dict, parameter, strata):
-    adjustment_dict.update({parameter: {stratum: 1.0 for stratum in strata}})
-    return adjustment_dict
+def repeat_list_elements_average_last_two(raw_props):
+    """
+    Repeat 5-year age-specific proportions, but with 75+s taking the average of the last two groups.
+    """
+    repeated_props = repeat_list_elements(2, raw_props[:-1])
+    repeated_props[-1] = sum(raw_props[-2:]) / 2.0
+    return repeated_props
 
 
 def find_series_compartment_parameter(proportion_to_split, n_compartments, original_parameter):
@@ -244,3 +249,31 @@ def find_first_index_reaching_cumulative_sum(a_list, threshold):
         raise ValueError("The cumulative sum of the entire list is smaller than the threshold")
 
     return next(i for i, val in enumerate(cumsum_list) if val >= threshold)
+
+
+def get_date_from_tuple(date_as_tuple):
+    return date(date_as_tuple[0], date_as_tuple[1], date_as_tuple[2])
+
+
+def find_relative_date(requested_date, base_date=(2019, 12, 31)):
+    difference = get_date_from_tuple(requested_date) - get_date_from_tuple(base_date)
+    return difference.days
+
+
+def normalise_sequence(input_sequence):
+    """
+    Normalise a list or tuple to produce a tuple with values representing the proportion of each to the total of the
+    input sequence.
+    """
+    return (i_value / sum(input_sequence) for i_value in input_sequence)
+
+
+def convert_list_contents_to_int(input_list):
+    return [int(i_element) for i_element in input_list]
+
+
+def element_wise_list_division(numerator, denominator):
+    """
+    Simple function to find the quotients of two lists.
+    """
+    return [num / den for num, den in zip(numerator, denominator)]

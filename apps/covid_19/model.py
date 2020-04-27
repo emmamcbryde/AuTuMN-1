@@ -2,6 +2,7 @@ import os
 from summer.model import StratifiedModel
 from summer.model.utils.base_compartments import replicate_compartment
 
+from autumn.tool_kit.utils import normalise_sequence, convert_list_contents_to_int
 from autumn import constants
 from autumn.constants import Compartment
 from autumn.tb_model import list_all_strata_for_mortality
@@ -17,15 +18,20 @@ from autumn.demography.social_mixing import load_specific_prem_sheet, update_mix
 from autumn.demography.population import get_population_size
 from autumn.demography.ageing import add_agegroup_breaks
 from autumn.db import Database
+from autumn.summer_related.parameter_adjustments import split_multiple_parameters
 
-from .stratification import stratify_by_age, stratify_by_clinical
+from .stratification import stratify_by_clinical
 from .outputs import (
     find_incidence_outputs,
     create_fully_stratified_incidence_covid,
+    create_fully_stratified_progress_covid,
     calculate_notifications_covid,
+    calculate_incidence_icu_covid
 )
 from .importation import set_tv_importation_rate
 from .matrices import build_covid_matrices, apply_npi_effectiveness
+from .utils import update_dict_params_for_calibration
+
 
 # Database locations
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +54,9 @@ def build_model(country: str, params: dict, update_params={}):
 
     # Update, not used in single application run
     model_parameters.update(update_params)
+
+    # update parameters stored in dictionaries that need to be modified during calibration
+    model_parameters = update_dict_params_for_calibration(model_parameters)
 
     # Get population size (by age if age-stratified)
     total_pops, model_parameters = get_population_size(model_parameters, input_database)
@@ -210,10 +219,22 @@ def build_model(country: str, params: dict, update_params={}):
             _covid_model, params["data"]["times_imported_cases"], params["data"]["n_imported_cases"]
         )
 
-    # Stratify model by age without demography
+    # Stratify model by age
     if "agegroup" in model_parameters["stratify_by"]:
-        _covid_model, model_parameters, output_connections = stratify_by_age(
-            _covid_model, mixing_matrix, total_pops, model_parameters, output_connections
+        age_strata = model_parameters["all_stratifications"]["agegroup"]
+        _covid_model.stratify(
+            "agegroup",  # Don't use the string age, to avoid triggering automatic demography
+            convert_list_contents_to_int(age_strata),
+            [],  # Apply to all compartments
+            {i_break: prop for
+             i_break, prop in zip(age_strata,
+                                  normalise_sequence(total_pops))},  # Distribute starting population
+            mixing_matrix=mixing_matrix,
+            adjustment_requests=
+            split_multiple_parameters(
+                ("to_infectious", "infect_death", "within_late"),
+                age_strata),  # Split unchanged parameters for later adjustment
+            verbose=False,
         )
 
     # Stratify infectious compartment as high or low infectiousness as requested
@@ -227,7 +248,14 @@ def build_model(country: str, params: dict, update_params={}):
         create_fully_stratified_incidence_covid(
             model_parameters["stratify_by"],
             model_parameters["all_stratifications"],
-            model_parameters,
+            model_parameters
+        )
+    )
+    output_connections.update(
+        create_fully_stratified_progress_covid(
+            model_parameters["stratify_by"],
+            model_parameters["all_stratifications"],
+            model_parameters
         )
     )
     _covid_model.output_connections = output_connections
@@ -237,6 +265,8 @@ def build_model(country: str, params: dict, update_params={}):
     _covid_model.death_output_categories = list_all_strata_for_mortality(
         _covid_model.compartment_names
     )
+    _covid_model.derived_output_functions["incidence_icu"] = calculate_incidence_icu_covid
+
 
     # Do mixing matrix stuff
     mixing_instructions = model_parameters.get("mixing")
