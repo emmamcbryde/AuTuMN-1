@@ -7,6 +7,7 @@ import numpy
 import itertools
 import hashlib
 import json
+import types
 from datetime import date
 
 from summer.model import find_name_components
@@ -35,9 +36,12 @@ def merge_dicts(src: dict, dest: dict):
     """
     for key, value in src.items():
         if isinstance(value, dict):
-            # get node or create one
+            # Get node or create one
             node = dest.setdefault(key, {})
-            merge_dicts(value, node)
+            if node is None:
+                dest[key] = value
+            else:
+                merge_dicts(value, node)
         else:
             dest[key] = value
 
@@ -207,12 +211,13 @@ def repeat_list_elements(repetitions, list_to_repeat):
     )
 
 
-def repeat_list_elements_average_last_two(raw_props):
+def repeat_list_elements_average_last_two(raw_props, prop_over_80):
     """
-    Repeat 5-year age-specific proportions, but with 75+s taking the average of the last two groups.
+    Repeat 5-year age-specific proportions, but with 75+s taking the weighted average of the last two groups.
+    prop_over_80 is the proportion of 80+ individuals among the 75+ population.
     """
     repeated_props = repeat_list_elements(2, raw_props[:-1])
-    repeated_props[-1] = sum(raw_props[-2:]) / 2.0
+    repeated_props[-1] = (1. - prop_over_80) * raw_props[-2] + prop_over_80 * raw_props[-1]
     return repeated_props
 
 
@@ -255,8 +260,17 @@ def get_date_from_tuple(date_as_tuple):
     return date(date_as_tuple[0], date_as_tuple[1], date_as_tuple[2])
 
 
-def find_relative_date(requested_date, base_date=(2019, 12, 31)):
-    difference = get_date_from_tuple(requested_date) - get_date_from_tuple(base_date)
+def get_date_from_string(date_as_string):
+    return date(int(date_as_string[:4]), int(date_as_string[4:6]), int(date_as_string[6:]))
+
+
+def find_relative_date_from_string_or_tuple(requested_date, base_date=(2019, 12, 31)):
+    requested_date = (
+        get_date_from_string(requested_date)
+        if type(requested_date) == str
+        else get_date_from_tuple(requested_date)
+    )
+    difference = requested_date - get_date_from_tuple(base_date)
     return difference.days
 
 
@@ -277,3 +291,32 @@ def element_wise_list_division(numerator, denominator):
     Simple function to find the quotients of two lists.
     """
     return [num / den for num, den in zip(numerator, denominator)]
+
+
+def copy_function(f, name=None):
+    """
+    return a function with same code, globals, defaults, closure, and
+    name (or provide a new name)
+    """
+    fn = types.FunctionType(
+        f.__code__, f.__globals__, name or f.__name__, f.__defaults__, f.__closure__
+    )
+    # in case f was given attrs (note this dict is a shallow copy):
+    fn.__dict__.update(f.__dict__)
+    return fn
+
+
+def print_target_to_plots_from_calibration(target_outputs):
+    print('outputs_to_plot:')
+    for i in range(len(target_outputs)):
+        target_outputs[i]["years"] = [str(t) for t in target_outputs[i]["years"]]
+        print("  - name: " + target_outputs[i]["output_key"])
+        print("    target_times: [" + ', '.join(target_outputs[i]["years"]) + "]")
+        to_print = "    target_values: ["
+        for j, val in enumerate(target_outputs[i]["values"]):
+            if j > 0:
+                to_print += ", "
+            to_print += "[" + str(val) + "]"
+        to_print += "]"
+        print(to_print)
+        print()

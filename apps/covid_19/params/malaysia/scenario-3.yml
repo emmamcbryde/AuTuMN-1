@@ -1,0 +1,8 @@
+# 100% of labor force back into the office from July 2
+mixing:
+  work:
+    append: true
+    times:
+      - 2020-08-01
+    values:
+      - 1.

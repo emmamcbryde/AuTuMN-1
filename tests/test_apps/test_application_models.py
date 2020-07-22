@@ -1,35 +1,49 @@
+from copy import deepcopy
+
 import pytest
 from summer.model import StratifiedModel
 
 from apps import mongolia, covid_19, marshall_islands
-
-MODEL_RUNNERS = [
-    ["Mongolia", mongolia.run_model],
-    ["Marshall Islands", marshall_islands.run_model],
-    ["COVID-19 AUS", covid_19.aus.run_model],
-]
+from autumn.tool_kit.utils import merge_dicts
 
 
-MODEL_BUILDERS = [
-    ["Mongolia", mongolia.build_model, mongolia.params],
-    ["Marshall Islands", marshall_islands.build_model, marshall_islands.params],
-    ["COVID-19 AUS", covid_19.aus.build_model, covid_19.aus.params],
-]
+@pytest.mark.local_only
+@pytest.mark.parametrize("region", covid_19.REGION_APPS)
+def test_run_models_partial(region):
+    """
+    Smoke test: ensure we can build and run each default model with nothing crashing.
+    Does not include scenarios, plotting, etc.
+    """
+    region_app = covid_19.get_region_app(region)
+    ps = deepcopy(region_app.params["default"])
+    # Only run model for ~2 epochs.
+    ps["end_time"] = ps["start_time"] + 2
+    model = region_app.build_model(ps)
+    model.run_model()
 
 
-@pytest.mark.parametrize("name, build_model, params", MODEL_BUILDERS)
-def test_build_models(name, build_model, params):
+@pytest.mark.local_only
+@pytest.mark.parametrize("region", covid_19.REGION_APPS)
+def test_build_scenario_models(region):
     """
     Smoke test: ensure we can build the each model with nothing crashing.
     """
-    model = build_model(params["default"])
-    assert type(model) is StratifiedModel
+    region_app = covid_19.get_region_app(region)
+    for scenario_params in region_app.params["scenarios"].values():
+        default_params = deepcopy(region_app.params["default"])
+        params = merge_dicts(scenario_params, default_params)
+        params = {**params, "start_time": region_app.params["scenario_start_time"]}
+        model = region_app.build_model(params)
+        assert type(model) is StratifiedModel
 
 
-@pytest.mark.parametrize("name, run_model", MODEL_RUNNERS)
-def test_run_models(name, run_model):
+@pytest.mark.run_models
+@pytest.mark.github_only
+@pytest.mark.parametrize("region", covid_19.REGION_APPS)
+def test_run_models_full(region):
     """
     Smoke test: ensure our models run to completion without crashing.
-    This can take up to 2 minutes per model.
+    This takes ~30s per model.
     """
-    run_model()
+    region_app = covid_19.get_region_app(region)
+    region_app.run_model()

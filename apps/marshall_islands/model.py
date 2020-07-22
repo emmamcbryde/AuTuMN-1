@@ -8,8 +8,10 @@ from autumn.tb_model.outputs import (
     create_request_stratified_incidence,
     create_request_stratified_notifications,
 )
-from autumn.tb_model.parameters import add_time_variant_parameter_to_model, build_scale_up_function
-from autumn.db import Database
+from autumn.tb_model.parameters import (
+    add_time_variant_parameter_to_model,
+    build_scale_up_function,
+)
 from autumn.tb_model.flows import (
     add_case_detection,
     add_latency_progression,
@@ -32,17 +34,15 @@ from autumn.tb_model import (
     add_standard_latency_flows,
     add_standard_natural_history_flows,
     add_standard_infection_flows,
-    add_birth_rate_functions,
     list_all_strata_for_mortality,
 )
 from autumn.tool_kit.scenarios import get_model_times_from_inputs
-
-# Database locations
-FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-INPUT_DB_PATH = os.path.join(constants.DATA_PATH, "inputs.db")
+from autumn import inputs
+from autumn.curve import scale_up_function
 
 
-def build_model(params: dict, update_params={}):
+
+def build_model(params: dict) -> StratifiedModel:
     """
     Build the master function to run the TB model for the Republic of the Marshall Islands
 
@@ -51,7 +51,6 @@ def build_model(params: dict, update_params={}):
     :return: StratifiedModel
         The final model with all parameters and stratifications
     """
-    input_database = Database(database_name=INPUT_DB_PATH)
 
     # Define compartments and initial conditions.
     compartments = [
@@ -66,16 +65,16 @@ def build_model(params: dict, update_params={}):
     init_pop = {Compartment.EARLY_INFECTIOUS: 10, Compartment.LATE_LATENT: 100}
 
     model_parameters = params
-    model_parameters.update(update_params)
 
     # Update partial immunity/susceptibility parameters
     model_parameters = update_transmission_parameters(
-        model_parameters, [Compartment.RECOVERED, Compartment.LATE_LATENT, Compartment.LTBI_TREATED]
+        model_parameters,
+        [Compartment.RECOVERED, Compartment.LATE_LATENT, Compartment.LTBI_TREATED],
     )
 
     # Set integration times
     integration_times = get_model_times_from_inputs(
-        model_parameters["start_time"], model_parameters["end_time"], model_parameters["time_step"]
+        model_parameters["start_time"], model_parameters["end_time"], model_parameters["time_step"],
     )
 
     # Sequentially add groups of flows to flows list
@@ -92,7 +91,7 @@ def build_model(params: dict, update_params={}):
     out_connections = {}
     out_connections.update(
         create_request_stratified_incidence(
-            model_parameters["incidence_stratification"], model_parameters["all_stratifications"]
+            model_parameters["incidence_stratification"], model_parameters["all_stratifications"],
         )
     )
     out_connections.update(
@@ -116,7 +115,10 @@ def build_model(params: dict, update_params={}):
     )
 
     # Add crude birth rate from UN estimates (using Federated States of Micronesia as a proxy as no data for RMI)
-    tb_model = add_birth_rate_functions(tb_model, input_database, "FSM")
+    birth_rates, years = inputs.get_crude_birth_rate("FSM")
+    tb_model.time_variants["crude_birth_rate"] = scale_up_function(
+        years, birth_rates, smoothness=0.2, method=5
+    )
 
     # Find raw case detection rate with multiplier, which is 1 by default, and adjust for differences by organ status
     cdr_scaleup_raw = build_scale_up_function(
@@ -163,10 +165,10 @@ def build_model(params: dict, update_params={}):
 
     # Assign newly created functions to model parameters
     add_time_variant_parameter_to_model(
-        tb_model, "case_detection", base_detection_rate, len(model_parameters["stratify_by"])
+        tb_model, "case_detection", base_detection_rate, len(model_parameters["stratify_by"]),
     )
     add_time_variant_parameter_to_model(
-        tb_model, "treatment_success", treatment_success_rate, len(model_parameters["stratify_by"])
+        tb_model, "treatment_success", treatment_success_rate, len(model_parameters["stratify_by"]),
     )
     add_time_variant_parameter_to_model(
         tb_model,
@@ -187,7 +189,6 @@ def build_model(params: dict, update_params={}):
         tb_model = stratify_by_age(
             tb_model,
             age_specific_latency_parameters,
-            input_database,
             model_parameters["all_stratifications"]["age"],
         )
     if "diabetes" in model_parameters["stratify_by"]:
@@ -207,7 +208,7 @@ def build_model(params: dict, update_params={}):
         )
     if "location" in model_parameters["stratify_by"]:
         tb_model = stratify_by_location(
-            tb_model, model_parameters, model_parameters["all_stratifications"]["location"]
+            tb_model, model_parameters, model_parameters["all_stratifications"]["location"],
         )
 
     # Capture reported prevalence in Majuro assuming over-reporting (needed for calibration)

@@ -26,11 +26,12 @@ def run_calibration_chain(max_seconds: int, run_id: int):
     calib = Calibration(
         "marshall_islands",
         build_model,
+        params,
         PAR_PRIORS,
         TARGET_OUTPUTS,
         MULTIPLIERS,
         run_id,
-        model_parameters=params,
+        total_nb_chains=1,
     )
     print("Starting calibration.")
     calib.run_fitting_algorithm(
@@ -44,7 +45,7 @@ def run_calibration_chain(max_seconds: int, run_id: int):
 
 
 PAR_PRIORS = [
-    {"param_name": "contact_rate", "distribution": "uniform", "distri_params": [10.0, 20.0]},
+    {"param_name": "contact_rate", "distribution": "uniform", "distri_params": [10.0, 20.0],},
     {
         "param_name": "late_progression_15",
         "distribution": "lognormal",
@@ -65,7 +66,7 @@ PAR_PRIORS = [
         "distribution": "lognormal",
         "distri_params": [0.25, 0.5],
     },
-    {"param_name": "cdr_multiplier", "distribution": "uniform", "distri_params": [0.5, 2.0]},
+    {"param_name": "cdr_multiplier", "distribution": "uniform", "distri_params": [0.5, 2.0],},
     {
         "param_name": "case_detection_ebeye_multiplier",
         "distribution": "lognormal",
@@ -92,9 +93,9 @@ TARGET_OUTPUTS = [
     },
     {"output_key": "reported_majuro_prevalence", "years": [2018.0], "values": [1578.0],},
     {"output_key": "prevXlatentXamongXlocation_majuro", "years": [2018.0], "values": [28.5],},
-    {"output_key": "notificationsXlocation_majuro", "years": [2016.0], "values": [119.0]},
+    {"output_key": "notificationsXlocation_majuro", "years": [2016.0], "values": [119.0],},
     {"output_key": "notificationsXlocation_ebeye", "years": [2016.0], "values": [53.0]},
-    {"output_key": "notificationsXlocation_otherislands", "years": [2014.0], "values": [10.0]},
+    {"output_key": "notificationsXlocation_otherislands", "years": [2014.0], "values": [10.0],},
 ]
 
 MULTIPLIERS = {

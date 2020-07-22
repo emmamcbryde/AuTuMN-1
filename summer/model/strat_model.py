@@ -3,9 +3,16 @@ import itertools
 from functools import lru_cache
 from typing import List, Dict
 
+import numpy as np
 import numpy
 
-from summer.constants import Compartment, Flow, BirthApproach, Stratification, IntegrationType
+from summer.constants import (
+    Compartment,
+    Flow,
+    BirthApproach,
+    Stratification,
+    IntegrationType,
+)
 from .epi_model import EpiModel
 from .utils import (
     convert_boolean_list_to_indices,
@@ -16,6 +23,7 @@ from .utils import (
     create_stratum_name,
     create_time_variant_multiplicative_function,
     element_list_multiplication,
+    element_list_division,
     extract_reversed_x_positions,
     find_name_components,
     find_stem,
@@ -189,7 +197,6 @@ class StratifiedModel(EpiModel):
         self.removed_compartments = []
         self.overwrite_parameters = []
         self.compartment_types_to_stratify = []
-        self.infectious_denominators = []
         self.strains = []
         self.mixing_categories = []
         self.unstratified_compartment_names = []
@@ -214,6 +221,8 @@ class StratifiedModel(EpiModel):
         self.mixing_matrix = None
         self.available_death_rates = [""]
         self.dynamic_mixing_matrix = False
+        self.mixing_indices = {}
+        self.infectious_denominators = []
 
     """
     stratification methods
@@ -230,7 +239,7 @@ class StratifiedModel(EpiModel):
         infectiousness_adjustments={},
         mixing_matrix=None,
         target_props=None,
-        verbose=True,
+        verbose=False,
     ):
         """
         calls to initial preparation, checks and methods that stratify the various aspects of the model
@@ -301,7 +310,7 @@ class StratifiedModel(EpiModel):
         if self.death_flows.shape[0] > 0:
             self.stratify_death_flows(stratification_name, strata_names, adjustment_requests)
         self.stratify_universal_death_rate(
-            stratification_name, strata_names, adjustment_requests, compartment_types_to_stratify
+            stratification_name, strata_names, adjustment_requests, compartment_types_to_stratify,
         )
 
         # if stratifying by strain
@@ -736,7 +745,7 @@ class StratifiedModel(EpiModel):
             self.transition_flows = self.transition_flows.append(all_new_flows, ignore_index=True)
 
     def add_adjusted_parameter(
-        self, _unadjusted_parameter, _stratification_name, _stratum, _adjustment_requests
+        self, _unadjusted_parameter, _stratification_name, _stratum, _adjustment_requests,
     ):
         """
         find the adjustment request that is relevant to a particular unadjusted parameter and stratum and add the
@@ -793,8 +802,7 @@ class StratifiedModel(EpiModel):
             stratified than any of the others (i.e. more instances of the "X" string), will return this most stratified
             parameter
         * if there are multiple submitted requests that are extensions to the unadjusted parameter and several of them
-            are equal in having the greatest extent of stratification, will return the first one with the greatest
-            length in the order of looping through the keys of the request dictionary
+            are equal in having the greatest extent of stratification, will return the longest string
 
         :param _unadjusted_parameter:
             see add_adjusted_parameter
@@ -808,14 +816,19 @@ class StratifiedModel(EpiModel):
         applicable_params = [
             param for param in _adjustment_requests if _unadjusted_parameter.startswith(param)
         ]
-        applicable_param_lengths = [len(find_name_components(param)) for param in applicable_params]
-
-        # find the first most stratified parameter
-        return (
-            applicable_params[applicable_param_lengths.index(max(applicable_param_lengths))]
-            if applicable_param_lengths
-            else None
-        )
+        applicable_param_n_stratifications = [
+            len(find_name_components(param)) for param in applicable_params
+        ]
+        if applicable_param_n_stratifications:
+            max_length_indices = [
+                i_p
+                for i_p, p in enumerate(applicable_param_n_stratifications)
+                if p == max(applicable_param_n_stratifications)
+            ]
+            candidate_params = [applicable_params[i] for i in max_length_indices]
+            return max(candidate_params, key=len)
+        else:
+            return None
 
     def sort_absent_transition_parameter(
         self,
@@ -865,7 +878,7 @@ class StratifiedModel(EpiModel):
             return unstratified_name
 
     def stratify_entry_flows(
-        self, _stratification_name, _strata_names, _entry_proportions, _requested_proportions
+        self, _stratification_name, _strata_names, _entry_proportions, _requested_proportions,
     ):
         """
         stratify entry/recruitment/birth flows according to requested entry proportion adjustments
@@ -965,7 +978,7 @@ class StratifiedModel(EpiModel):
                             "type": self.death_flows.type[n_flow],
                             "parameter": parameter_name,
                             "origin": create_stratified_name(
-                                self.death_flows.origin[n_flow], _stratification_name, stratum
+                                self.death_flows.origin[n_flow], _stratification_name, stratum,
                             ),
                             "implement": len(self.all_stratifications),
                         },
@@ -1202,10 +1215,10 @@ class StratifiedModel(EpiModel):
                             + "_"
                             + _strata_names[n_stratum + 1],
                             "origin": create_stratified_name(
-                                compartment, _stratification_name, _strata_names[n_stratum]
+                                compartment, _stratification_name, _strata_names[n_stratum],
                             ),
                             "to": create_stratified_name(
-                                compartment, _stratification_name, _strata_names[n_stratum + 1]
+                                compartment, _stratification_name, _strata_names[n_stratum + 1],
                             ),
                             "implement": len(self.all_stratifications),
                             "strain": float("nan"),
@@ -1253,7 +1266,7 @@ class StratifiedModel(EpiModel):
                     i_comp
                     for i_comp in range(len(self.compartment_names))
                     if create_stratum_name(
-                        stratif, self.all_stratifications[stratif][i_stratum], joining_string=""
+                        stratif, self.all_stratifications[stratif][i_stratum], joining_string="",
                     )
                     in find_name_components(self.compartment_names[i_comp])
                 ]
@@ -1354,6 +1367,7 @@ class StratifiedModel(EpiModel):
                     self.adaptation_functions[component]
                 )
             else:
+
                 raise ValueError("parameter component %s not appropriate format" % component)
 
             # create the composite function
@@ -1412,7 +1426,9 @@ class StratifiedModel(EpiModel):
                 raise ValueError(
                     "parameter component %s not found in parameters attribute" % component
                 )
-            elif isinstance(self.parameters[component], float):
+            elif isinstance(self.parameters[component], float) or isinstance(
+                self.parameters[component], int
+            ):
                 self.adaptation_functions[component] = create_multiplicative_function(
                     self.parameters[component]
                 )
@@ -1425,7 +1441,7 @@ class StratifiedModel(EpiModel):
 
             # create the composite function
             self.final_parameter_functions[_parameter] = create_function_of_function(
-                self.adaptation_functions[component], self.final_parameter_functions[_parameter]
+                self.adaptation_functions[component], self.final_parameter_functions[_parameter],
             )
 
     def prepare_infectiousness_calculations(self):
@@ -1440,10 +1456,10 @@ class StratifiedModel(EpiModel):
         # mixing preparations
         if self.mixing_matrix is not None:
             self.add_force_indices_to_transitions()
-        mixing_indices = self.find_mixing_denominators()
+        self.find_mixing_denominators()
 
         # reconciling the strains and the mixing attributes together into one structure
-        self.find_strain_mixing_multipliers(mixing_indices)
+        self.find_strain_mixing_multipliers()
 
     def prepare_all_infectiousness_multipliers(self):
         """
@@ -1519,12 +1535,12 @@ class StratifiedModel(EpiModel):
         # loop through and find the index of the mixing matrix applicable to the flow, of which there should be only one
         for n_flow in infection_flow_indices:
             found = False
-            for n_group, force_group in enumerate(self.mixing_categories):
+            for i_group, force_group in enumerate(self.mixing_categories):
                 if all(
                     stratum in find_name_components(self.transition_flows.origin[n_flow])
                     for stratum in find_name_components(force_group)
                 ):
-                    self.transition_flows.force_index[n_flow] = n_group
+                    self.transition_flows.force_index[n_flow] = i_group
                     if found:
                         raise ValueError(
                             "mixing group found twice for transition flow number %s" % n_flow
@@ -1542,11 +1558,10 @@ class StratifiedModel(EpiModel):
             indices of the compartments that are applicable to a particular mixing category
         """
         if self.mixing_matrix is None:
-            return {"all_population": range(len(self.compartment_names))}
+            self.mixing_indices = {"all_population": range(len(self.compartment_names))}
         else:
-            mixing_indices = {}
             for category in self.mixing_categories:
-                mixing_indices[category] = [
+                self.mixing_indices[category] = [
                     i_comp
                     for i_comp, compartment in enumerate(self.compartment_names)
                     if all(
@@ -1556,28 +1571,36 @@ class StratifiedModel(EpiModel):
                         ]
                     )
                 ]
-            return mixing_indices
 
-    def find_strain_mixing_multipliers(self, mixing_indices):
+        self.mixing_indices_arr = np.array(list(self.mixing_indices.values()))
+
+    def find_strain_mixing_multipliers(self):
         """
         find the relevant indices to be used to calculate the force of infection contribution to each strain from each
             mixing category as a list of indices - and separately find multipliers as a list of the same length for
             their relative infectiousness extracted from self.infectiousness_multipliers
         """
         for strain in self.strains + ["all_strains"]:
-            self.strain_mixing_elements[strain], self.strain_mixing_multipliers[strain] = {}, {}
+            (self.strain_mixing_elements[strain], self.strain_mixing_multipliers[strain],) = (
+                {},
+                {},
+            )
             for category in (
                 ["all_population"] if self.mixing_matrix is None else self.mixing_categories
             ):
-                self.strain_mixing_elements[strain][category] = [
-                    index
-                    for index in mixing_indices[category]
-                    if index in self.infectious_indices[strain]
-                ]
-                self.strain_mixing_multipliers[strain][category] = [
-                    self.infectiousness_multipliers[i_comp]
-                    for i_comp in self.strain_mixing_elements[strain][category]
-                ]
+                self.strain_mixing_elements[strain][category] = numpy.array(
+                    [
+                        index
+                        for index in self.mixing_indices[category]
+                        if index in self.infectious_indices[strain]
+                    ]
+                )
+                self.strain_mixing_multipliers[strain][category] = numpy.array(
+                    [
+                        self.infectiousness_multipliers[i_comp]
+                        for i_comp in self.strain_mixing_elements[strain][category]
+                    ]
+                )
 
     def find_transition_indices_to_implement(
         self, back_one: int = 0, include_change: bool = False
@@ -1638,6 +1661,7 @@ class StratifiedModel(EpiModel):
 
     # Cache return values to prevent wasteful re-computation - cache size is huge.
     # Floating point return type is 8 bytes, meaning 2**17 values is ~1MB of memory.
+    # N.B this will leak memory, which is fine.
     @lru_cache(maxsize=2 ** 17)
     def get_parameter_value(self, _parameter, _time):
         """
@@ -1653,32 +1677,28 @@ class StratifiedModel(EpiModel):
         """
         return self.final_parameter_functions[_parameter](_time)
 
-    def find_infectious_population(self, _compartment_values):
+    def find_infectious_population(self, compartment_values):
         """
         find vectors for the total infectious populations and the total population that is needed in the case of
             frequency-dependent transmission
 
-        :param _compartment_values: numpy array
+        :param compartment_values: numpy array
             current values for the compartment sizes
         """
-        mixing_categories = (
-            ["all_population"] if self.mixing_matrix is None else self.mixing_categories
+        strains = self.strains if self.strains else ["all_strains"]
+        if self.mixing_matrix is None:
+            mixing_categories = ["all_population"]
+        else:
+            mixing_categories = self.mixing_categories
+
+        self.infectious_denominators = compartment_values[self.mixing_indices_arr].sum(axis=1)
+        self.infectious_populations = find_infectious_populations(
+            compartment_values,
+            strains,
+            mixing_categories,
+            self.strain_mixing_elements,
+            self.strain_mixing_multipliers,
         )
-        for strain in self.strains if self.strains else ["all_strains"]:
-            self.infectious_populations[strain] = []
-            for category in mixing_categories:
-                self.infectious_populations[strain].append(
-                    sum(
-                        element_list_multiplication(
-                            [
-                                _compartment_values[i_comp]
-                                for i_comp in self.strain_mixing_elements[strain][category]
-                            ],
-                            self.strain_mixing_multipliers[strain][category],
-                        )
-                    )
-                )
-        self.infectious_denominators = sum(_compartment_values)
 
     def find_infectious_multiplier(self, n_flow):
         """
@@ -1700,10 +1720,17 @@ class StratifiedModel(EpiModel):
         mixing_elements = (
             [1.0] if self.mixing_matrix is None else self.mixing_matrix[force_index, :]
         )
-        denominator = 1.0 if "_density" in flow_type else self.infectious_denominators
-        return (
-            sum(element_list_multiplication(self.infectious_populations[strain], mixing_elements))
-            / denominator
+        denominator = (
+            [1.0] * len(self.infectious_denominators)
+            if "_density" in flow_type
+            else self.infectious_denominators
+        )
+
+        return sum(
+            element_list_division(
+                element_list_multiplication(self.infectious_populations[strain], mixing_elements),
+                denominator,
+            )
         )
 
     def prepare_time_step(self, _time):
@@ -1826,7 +1853,7 @@ class StratifiedModel(EpiModel):
 
             # update equations
             _ode_equations = increment_list_by_index(
-                _ode_equations, self.compartment_names.index(take_compartment), -net_flow
+                _ode_equations, self.compartment_names.index(take_compartment), -net_flow,
             )
             _ode_equations = increment_list_by_index(
                 _ode_equations, self.compartment_names.index(give_compartment), net_flow
@@ -1912,92 +1939,35 @@ class StratifiedModel(EpiModel):
         return create_cumulative_dict(current_strata_props)
 
 
-if __name__ == "__main__":
+from numba import jit
 
-    def get_total_popsize(model, time):
-        return sum(model.compartment_values)
 
-    sir_model = StratifiedModel(
-        numpy.linspace(0, 60 / 365, 61).tolist(),
-        ["susceptible", "infectious", "recovered"],
-        {"infectious": 0.001},
-        {"beta": 400, "recovery": 365 / 13, "infect_death": 1},
-        [
-            {
-                "type": "standard_flows",
-                "parameter": "recovery",
-                "origin": "infectious",
-                "to": "recovered",
-            },
-            {
-                "type": "infection_density",
-                "parameter": "beta",
-                "origin": "susceptible",
-                "to": "infectious",
-            },
-            {"type": "compartment_death", "parameter": "infect_death", "origin": "infectious"},
-        ],
-        output_connections={
-            "incidence": {"origin": "susceptible", "to": "infectious"},
-            "incidence_hiv_positive": {
-                "origin": "susceptible",
-                "to": "infectious",
-                "origin_condition": "hiv_positive",
-                "to_condition": "hiv_positive",
-            },
-        },
-        verbose=False,
-        derived_output_functions={"population": get_total_popsize},
-        death_output_categories=((), ("hiv_positive",)),
-    )
-    # sir_model.adaptation_functions["increment_by_one"] = create_additive_function(1.)
+def find_infectious_populations(
+    compartment_values: np.ndarray,
+    strains: List[str],
+    mixing_categories: List[str],
+    strain_mixing_elements: Dict[str, Dict[str, List[int]]],
+    strain_mixing_multipliers: Dict[str, Dict[str, np.ndarray]],
+):
+    infectious_populations = {}
+    num_mixing_categories = len(mixing_categories)
+    for strain in strains:
+        infectious_populations[strain] = []
+        for idx in range(num_mixing_categories):
+            category = mixing_categories[idx]
+            weighted_sum = _find_infectious_populations_weighted_sum(
+                compartment_values,
+                strain_mixing_elements[strain][category],
+                strain_mixing_multipliers[strain][category],
+            )
+            infectious_populations[strain].append(weighted_sum)
 
-    # hiv_mixing = numpy.ones(4).reshape(2, 2)
-    hiv_mixing = None
+    return infectious_populations
 
-    temp_function = lambda time: 0.4
-    sir_model.time_variants["temp_function"] = temp_function
 
-    age_mixing = None
-    sir_model.stratify(
-        "age",
-        [5, 10],
-        [],
-        {},
-        {"recovery": {"5": 0.5, "10": 0.8}},
-        infectiousness_adjustments={"5": 0.8},
-        mixing_matrix=age_mixing,
-        verbose=False,
-    )
-
-    sir_model.stratify(
-        "hiv",
-        ["negative", "positive"],
-        [],
-        {"negative": 0.6},
-        {
-            "recovery": {"negative": "increment_by_one", "positive": 0.5},
-            "infect_death": {"negative": 0.5},
-            "entry_fraction": {"negative": 0.6, "positive": 0.4},
-        },
-        adjustment_requests={"recovery": {"negative": 0.7}},
-        infectiousness_adjustments={"positive": 0.5},
-        mixing_matrix=hiv_mixing,
-        verbose=False,
-        target_props={"all": {"negative": 0.5}},
-    )
-
-    # sir_model.stratify("strain", ["sensitive", "resistant"], ["infectious"],
-    #                    adjustment_requests={"recoveryXhiv_negative": {"sensitive": 0.9},
-    #                                         "recovery": {"sensitive": 0.8}},
-    #                    requested_proportions={}, verbose=False)
-
-    sir_model.transition_flows.to_csv("transitions.csv")
-
-    sir_model.run_model()
-
-    # create_flowchart(sir_model, name="sir_model_diagram")
-
-    # create_flowchart(sir_model)
-    #
-    sir_model.plot_compartment_size(["infectious", "hiv_positive"])
+@jit(nopython=True)
+def _find_infectious_populations_weighted_sum(
+    compartment_values: np.ndarray, mixing_element_idxs: np.ndarray, mixing_multipliers: np.ndarray,
+):
+    mixing_elements = compartment_values[mixing_element_idxs]
+    return (mixing_elements * mixing_multipliers).sum()

@@ -1,10 +1,17 @@
 import copy
+import logging
 
 import matplotlib.pyplot
-import numpy
+import numpy as np
 import pandas as pd
 
-from ..constants import Compartment, Flow, BirthApproach, Stratification, IntegrationType
+from ..constants import (
+    Compartment,
+    Flow,
+    BirthApproach,
+    Stratification,
+    IntegrationType,
+)
 from .utils.solver import solve_ode
 from .utils.validation import validate_model
 from .utils import (
@@ -13,6 +20,8 @@ from .utils import (
     find_stem,
     increment_list_by_index,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class EpiModel:
@@ -66,7 +75,7 @@ class EpiModel:
         keys are the names of the quantities to be tracked
         value is dict containing the origin and the destination ("to") compartments on which to base these calculations
             as well as conditional strings that should appear in the origin and destination compartment names
-    :attribute outputs: numpy array
+    :attribute outputs: np array
         array containing all the evaluated compartment sizes
     :attribute parameters: dict
         string keys for each parameter, with values either string to refer to a time-variant function or float
@@ -109,7 +118,7 @@ class EpiModel:
         :param: comment: string for the comment to be displayed to the user
         """
         if self.verbose:
-            print(comment)
+            logger.info(comment)
 
     """
     model construction methods
@@ -138,7 +147,7 @@ class EpiModel:
         Thise model is unstratified, but has characteristics required to support stratification.
         """
         self.transition_flows = pd.DataFrame(
-            columns=("type", "parameter", "origin", "to", "implement", "strain", "force_index")
+            columns=("type", "parameter", "origin", "to", "implement", "strain", "force_index",)
         )
         self.death_flows = pd.DataFrame(columns=("type", "parameter", "origin", "implement"))
         self.all_stratifications = {}
@@ -324,18 +333,18 @@ class EpiModel:
             return self.apply_all_flow_types_to_odes(compartment_values, time)
 
         self.outputs = solve_ode(
-            integration_type, ode_func, self.compartment_values, self.times, solver_args
+            integration_type, ode_func, np.array(self.compartment_values), self.times, solver_args,
         )
 
         # Check that all compartment values are >= 0
-        if numpy.any(self.outputs < 0.0):
-            print("Warning: compartment(s) with negative values.")
+        if np.any(self.outputs < 0.0):
+            logger.info("Warning: compartment(s) with negative values.")
 
         # Collate outputs to be calculated post-integration that are not just compartment sizes.
         self.calculate_post_integration_connection_outputs()
-        self.calculate_post_integration_function_outputs()
         for death_output in self.death_output_categories:
             self.calculate_post_integration_death_outputs(death_output)
+        self.calculate_post_integration_function_outputs()
 
     def apply_all_flow_types_to_odes(self, compartment_values, time):
         """
@@ -344,7 +353,7 @@ class EpiModel:
 
         :param flow_rates: list
             comes in as a list of zeros with length equal to that of the number of compartments for integration
-        :param compartment_values: numpy.ndarray
+        :param compartment_values: np.ndarray
             working values of the compartment sizes
         :param time: float
             current integration time
@@ -352,9 +361,9 @@ class EpiModel:
             updated ode equations in same format but with all flows implemented
         """
         if self.ticker:
-            print("Integrating at time: %s" % time)
+            logger.info("Integrating at time: %s" % time)
         self.prepare_time_step(time)
-        flow_rates = numpy.zeros(len(self.compartment_names))
+        flow_rates = np.zeros(len(self.compartment_names))
         flow_rates = self.apply_transition_flows(flow_rates, compartment_values, time)
         # Apply deaths before births so that we can use 'total deaths' to calculate the birth rate, if required.
         flow_rates = self.apply_compartment_death_flows(flow_rates, compartment_values, time)
@@ -659,25 +668,23 @@ class EpiModel:
         self.compartment_values = self.outputs[self.times.index(time)]
         self.update_tracked_quantities(self.compartment_values)
 
-    def find_output_transition_indices(self, output):
+    def find_output_transition_indices(self, output: str):
         """
-        find the transition indices that are relevant to a particular output evaluation request from the
-            output_connections dictionary created from the user's request
-
-        :param output: str
-            name of the output of interest
-        :return: list
-            integers referencing the transition flows relevant to this output connection
+        Find the transition indices that are relevant to a particular output evaluation request.
+        A flow is "Relevant" if the flow is impelemented, has a matching origin and target,
+        and something to to with "origin condition" or "to condition" which I don't understand.
+        Returns a list of idxs for the transition flows DataFrame.
         """
-
-        def condition(idx):
-            implement = self.transition_flows_dict["implement"][idx]
-            origin = self.transition_flows_dict["origin"][idx]
-            target = self.transition_flows_dict["to"][idx]
-            check_implement = implement == len(self.all_stratifications)
+        num_flows = len(self.transition_flows)
+        flow_idxs = []
+        for flow_idx in range(num_flows):
             output_conn = self.output_connections[output]
+            implement = self.transition_flows_dict["implement"][flow_idx]
+            origin = self.transition_flows_dict["origin"][flow_idx]
+            target = self.transition_flows_dict["to"][flow_idx]
             check_origin_stem = find_stem(origin) == output_conn["origin"]
             check_target_stem = find_stem(target) == output_conn["to"]
+            check_implement = implement == len(self.all_stratifications)
             check_origin_condition = "origin_condition" not in output_conn or (
                 "origin_condition" in output_conn
                 and all(
@@ -694,15 +701,17 @@ class EpiModel:
                 )
                 or output_conn["to_condition"] == ""
             )
-            return (
+            is_transition_flow_for_output = (
                 check_implement
                 and check_origin_stem
                 and check_target_stem
                 and check_origin_condition
                 and check_target_condition
             )
+            if is_transition_flow_for_output:
+                flow_idxs.append(flow_idx)
 
-        return [i for i in range(len(self.transition_flows)) if condition(i)]
+        return flow_idxs
 
     def find_output_death_indices(self, _death_output):
         """

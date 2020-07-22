@@ -16,7 +16,7 @@ from summer.model.utils.parameter_processing import (
 
 from autumn import constants
 from autumn.curve import scale_up_function
-from autumn.db import Database, get_pop_mortality_functions
+from autumn.inputs import get_death_rates_by_agegroup, get_crude_birth_rate
 from autumn.tb_model import (
     create_output_connections_for_incidence_by_stratum,
     list_all_strata_for_mortality,
@@ -27,17 +27,12 @@ from autumn.tb_model import (
     add_standard_latency_flows,
     add_standard_natural_history_flows,
     add_standard_infection_flows,
-    add_birth_rate_functions,
 )
 from autumn.tool_kit import return_function_of_function, change_parameter_unit
 
-# Database locations
-INPUT_DB_PATH = os.path.join(constants.DATA_PATH, "inputs.db")
 
-
-def build_model(params, update_params={}):
+def build_model(params: dict) -> StratifiedModel:
     external_params = deepcopy(params)
-    external_params.update(update_params)
     model_parameters = {
         "contact_rate": external_params["contact_rate"],
         "contact_rate_recovered": external_params["contact_rate"]
@@ -51,7 +46,6 @@ def build_model(params, update_params={}):
     stratify_by = external_params["stratify_by"]
     derived_output_types = external_params["derived_outputs"]
 
-    input_database = Database(database_name=INPUT_DB_PATH)
     n_iter = (
         int(
             round(
@@ -73,7 +67,13 @@ def build_model(params, update_params={}):
     flows = add_standard_natural_history_flows(flows)
 
     # compartments
-    compartments = ["susceptible", "early_latent", "late_latent", "infectious", "recovered"]
+    compartments = [
+        "susceptible",
+        "early_latent",
+        "late_latent",
+        "infectious",
+        "recovered",
+    ]
 
     # define model     #replace_deaths  add_crude_birth_rate
     init_pop = {"infectious": 1000, "late_latent": 1000000}
@@ -92,7 +92,15 @@ def build_model(params, update_params={}):
     )
 
     # add crude birth rate from un estimates
-    tb_model = add_birth_rate_functions(tb_model, input_database, "MNG")
+    birth_rates, years = get_crude_birth_rate("MNG")
+    # Provisional patch to birth rates
+    for i in range(len(birth_rates)):
+        if years[i] > 1990.0:
+            birth_rates[i] = 0.04
+
+    tb_model.time_variants["crude_birth_rate"] = scale_up_function(
+        years, birth_rates, smoothness=0.2, method=5
+    )
 
     # add case detection process to basic model
     tb_model.add_transition_flow(
@@ -336,9 +344,13 @@ def build_model(params, update_params={}):
                         "adult_latency_adjustment"
                     ]
 
-        pop_morts = get_pop_mortality_functions(
-            input_database, age_breakpoints, country_iso_code="MNG"
-        )
+        death_rates_by_age, death_rate_years = get_death_rates_by_agegroup(age_breakpoints, "MNG")
+        pop_morts = {}
+        for age_group in age_breakpoints:
+            pop_morts[age_group] = scale_up_function(
+                death_rate_years, death_rates_by_age[age_group], smoothness=0.2, method=5
+            )
+
         age_params["universal_death_rate"] = {}
         for age_break in age_breakpoints:
             tb_model.time_variants["universal_death_rateXage_" + str(age_break)] = pop_morts[
@@ -409,7 +421,7 @@ def build_model(params, update_params={}):
             "organ",
             ["smearpos", "smearneg", "extrapul"],
             ["infectious"],
-            infectiousness_adjustments={"smearpos": 1.0, "smearneg": 0.25, "extrapul": 0.0},
+            infectiousness_adjustments={"smearpos": 1.0, "smearneg": 0.25, "extrapul": 0.0,},
             verbose=False,
             requested_proportions=props_smear,
             adjustment_requests={
@@ -609,9 +621,16 @@ def build_model(params, update_params={}):
 
 
 def build_mongolia_timevariant_cdr(cdr_multiplier):
-    cdr = {1950.0: 0.0, 1980.0: 0.10, 1990.0: 0.15, 2000.0: 0.20, 2010.0: 0.30, 2015: 0.33}
+    cdr = {
+        1950.0: 0.0,
+        1980.0: 0.10,
+        1990.0: 0.15,
+        2000.0: 0.20,
+        2010.0: 0.30,
+        2015: 0.33,
+    }
     return scale_up_function(
-        cdr.keys(), [c * cdr_multiplier for c in list(cdr.values())], smoothness=0.2, method=5
+        cdr.keys(), [c * cdr_multiplier for c in list(cdr.values())], smoothness=0.2, method=5,
     )
 
 

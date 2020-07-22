@@ -4,6 +4,7 @@ Pipfile.lock
 venv/
 env/
 .pytest_cache
+*.cprof
 
 # IDE stuff
 .idea
@@ -14,12 +15,16 @@ env/
 *.png
 
 # Data
-*.json
 *.pkl
 *.pickle
-output*.db
-inputs.*.db
-data/
+*.db
+logs/
+
+# Website stuff
+node_modules/
+.next/
+website.json
+out/
 
 # Python packaging stuff
 autumn.egg*
@@ -33,6 +38,15 @@ dist/
 osx_boot.sh
 *.secret.*
 
+# Old model runs
+data/marshall_islands
+data/mongolia
+data/covid_*
+data/sir_example_*
+
+# Models runs and calibrations
+data/outputs
+
 # Random stuff
 projects
 saved_*
@@ -41,4 +55,54 @@ saved_uncertainty_analyses/
 saved_*
 projects
 autumn_from_summer/databases/outputs*
-autumn_from_summer/mongolia/mcmc_chistmas_2019/o
+autumn_from_summer/mongolia/mcmc_chistmas_2019/
+dummy/
+apps/covid_19/targets/philippines/Philippines_data_2020May20.pdf
+apps/covid_19/mixing_optimisation/optimisation_outputs/united-kingdom_config_0_results.csv
+apps/covid_19/mixing_optimisation/detection.csv
+data/test_get_sample/opti_sample.csv
+data/xls/data_liberia.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/results_N_21.tar
+apps/covid_19/mixing_optimisation/optimisation_outputs/old/united-kingdom_config_0_results.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_location_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_location_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_location_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_location_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_age_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_age_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_age_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_united-kingdom_by_age_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_location_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_location_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_location_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_location_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_age_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_age_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_age_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_sweden_by_age_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_location_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_location_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_location_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_location_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_age_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_age_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_age_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_italy_by_age_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_location_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_location_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_location_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_location_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_age_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_age_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_age_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_france_by_age_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_location_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_location_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_location_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_location_2_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_age_3_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_age_3_deaths.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_age_2_yoll.csv
+apps/covid_19/mixing_optimisation/optimisation_outputs/21July2020/results_belgium_by_age_2_deaths.csv
+apps/covid_19/mixing_optimisation/opti_plots/dumped_dict_param_posteriors.yml
+apps/covid_19/mixing_optimisation/opti_plots/dumped_dict.yml

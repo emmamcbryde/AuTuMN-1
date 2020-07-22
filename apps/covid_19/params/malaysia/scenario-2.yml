@@ -1,0 +1,10 @@
+# 9% of original labor force back into the office from July 2 to simulate university reopening
+mixing:
+  work:
+    append: true
+    times:
+      - 2020-07-31
+      - 2020-08-01
+    values:
+      - [repeat_prev]
+      - [add_to_prev_up_to_1, 0.09]

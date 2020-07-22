@@ -1,10 +1,23 @@
 """
 Sigmoidal and spline functions to generate cost coverage curves and historical input curves.
 """
-from math import exp
+from math import exp, tanh
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+from scipy.integrate import quad
+
+
+def numerical_integration(func, lower, upper):
+    """
+    Computes the numerical integration of a function on a segment.
+    :param func: callable
+    :param lower: lower bound of the requested integral
+    :param upper: upper bound of the requested integral
+    :return:
+    """
+    integral = quad(func, lower, upper)[0]
+    return integral
 
 
 def make_sigmoidal_curve(y_low=0, y_high=1.0, x_start=0, x_inflect=0.5, multiplier=1.0):
@@ -76,6 +89,21 @@ def make_two_step_curve(y_low, y_med, y_high, x_start, x_med, x_end):
         return y_high
 
     return curve
+
+
+def tanh_based_scaleup(b, c, sigma):
+    """
+    return the function t: (1 - sigma) / 2 * tanh(b * (a - c)) + (1 + sigma) / 2
+    :param b: shape parameter
+    :param c: inflection point
+    :param sigma: lowest asymptotic value
+    :return: a function
+    """
+
+    def tanh_scaleup(t):
+        return (1 - sigma) / 2 * tanh(b * (t - c)) + (1 + sigma) / 2
+
+    return tanh_scaleup
 
 
 """ the functions test_a and get_spare_fit are only used inside of scale_up_function when method=5 """
@@ -245,7 +273,7 @@ def scale_up_function(
         else:
             t_intervention_start = max(x)
         curve_intervention = scale_up_function(
-            x=[t_intervention_start, intervention_end[0]], y=[y[-1], intervention_end[1]], method=4
+            x=[t_intervention_start, intervention_end[0]], y=[y[-1], intervention_end[1]], method=4,
         )
 
     if (len(x) == 1) or (max(y) - min(y) == 0):
@@ -825,7 +853,19 @@ if __name__ == "__main__":
     # pylab.ylim(0, 5)
     # pylab.show()
 
-    x = (1880.0, 1890.0, 1900.0, 1910.0, 1930.0, 1950.0, 1990.0, 1997.0, 2000.0, 2002.0, 2005.0)
+    x = (
+        1880.0,
+        1890.0,
+        1900.0,
+        1910.0,
+        1930.0,
+        1950.0,
+        1990.0,
+        1997.0,
+        2000.0,
+        2002.0,
+        2005.0,
+    )
     y = np.random.rand(len(x))
 
     f = scale_up_function(x, y, method=1, intervention_end=[2010, 1.0])

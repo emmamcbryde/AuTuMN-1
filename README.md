@@ -4,39 +4,99 @@ AuTuMN
 
 ![](https://github.com/monash-emu/AuTuMN/workflows/Continuous%20Integration/badge.svg)
 
-This project is a modelling framework used by the [AuTuMN tuberculosis modelling project](http://www.tb-modelling.com/index.php). It provides a set of Python models that modularises the development of dynamic transmission models and allows a pluggable API to other system. Applied to tuberculosis.
+This project is a Python disease modelling framework used by the [AuTuMN tuberculosis modelling project](http://www.tb-modelling.com/index.php).
+It is currently being applied to COVID-19 as well. This project is used by the Monash Univeristy Epidemiological Modelling Unit.
 
-The tuberculosis-specific AuTuMN modelling framework is build on top of the disease-agnostic [SUMMER project](https://github.com/monash-emu/summer).
+See [this guide](./docs/setup.md) for information on how to set up this project. See [here](./docs/adding-new-covid-model.md) for steps on how to add a new COVID model.
 
-See [this guide](./docs/setup.md) for information on how to set up this project.
+## Using the command line
 
-## Project Structure
+All of Autumn's features can be accessed from the command line. You can run commands as follows:
+
+```bash
+python -m apps <YOUR COMMANDS>
+```
+
+To see a list of options, try:
+
+```bash
+python -m apps --help
+```
+
+## Project structure
 
 ```
 ├── .github                 GitHub config
-├── apps            Specific apps of AuTuMN
+├── apps                    Specific applications of the framework
 ├── autumn                  AuTuMN framework module
 ├── data                    Data to be used by the models
+|   ├─ inputs                   Input data for the models
+|   └─ outputs                  Module run outputs (not in source control)
+|
 ├── docs                    Documentation
-├── scripts                 Ad-hoc utility scripts
+├── scripts                 Utility scripts
+|   ├─ aws                      Scripts to run tasks on AWS
+|   ├─ buildkite                Configuration of Buildkite pipelines
+|   └─ massive                  Scripts to run tasks on MASSIVE (not used)
+|
+├── summer                  SUMMER framework module
+├── tasks                   Cloud computing tasks
 ├── tests                   Automated tests
 ├── .gitignore              Files for Git to ignore
-├── .pylintrc               PyLint code linter configuration
-├── conftest.py             PyTest test runner configuration
-├── requirements.txt        Python library dependencies
-└── setup.py                Packaging for deployment to MASSIVE computing platform
+├── plots.py                Streamlit entrypoint
+└── requirements.txt        Python library dependencies
 ```
 
-## MASSIVE
+## Running an application
 
-We sometimes need to run jobs on Monash's [MASSIVE](https://www.monash.edu/research/infrastructure/platforms-pages/massive) computer cluster. The scripts and documentation that allow you to do this can be found in the `scripts/massive/` folder.
+You can run all the scenarios for specific application using the `run` command. For example, to run the "malaysia" region of the "covid" model, you can run:
 
-## Tests
+```bash
+python -m apps run covid malaysia
+```
 
-Automated tests may be run via [PyCharm](https://www.jetbrains.com/help/pycharm/pytest.html) or via the command line:
+Model run outputs are written to `data/outputs/run` and can be viewed in Streamlit (see below).
+
+## Running a calibration
+
+You can run a model MCMC calibration as follows
+
+```bash
+python -m apps calibrate MODEL_NAME MAX_SECONDS RUN_ID
+```
+
+For example, to calibrate the malaysia COVID model for 30 seconds you can run:
+
+```bash
+python -m apps calibrate malaysia 30 0
+```
+
+The RUN_ID argument can always be "0" for local use, it doesn't really matter.
+
+Model calibration outputs are written to `data/outputs/calibrate` and can be viewed in Streamlit (see below).
+
+## Running Streamlit
+
+We use [Streamlit](https://www.streamlit.io/) to visualise the output of local model runs. You can run streamlit from the command line to view your model's outputs as follows:
+
+```bash
+streamlit run plots.py
+```
+
+If you want to view the outputs of a calibration, run:
+
+```bash
+streamlit run plots.py mcmc
+```
+
+## Running the automated tests
+
+We have a suite of automated tests that verify that the code works. Some of these are rigorous "unit" tests which validate functionality, while others are only "smoke" tests, which verify that the code runs without crashing. These tests are written with [pytest](https://docs.pytest.org/en/stable/).
+
+You are encouraged to run the tests locally before pushing your code to GitHub. Automated tests may be run via [PyCharm](https://www.jetbrains.com/help/pycharm/pytest.html) or via the command line using pytest:
 
 ```
-./scripts/test.ps1
+pytest -v
 ```
 
 Tests are also run automatically via [GitHub Actions](https://github.com/monash-emu/AuTuMN/actions) on any pull request or commit to the `master` branch.
@@ -49,27 +109,48 @@ The codebase can be auto-formatted using [Black](https://github.com/psf/black):
 ./scripts/format.ps1
 ```
 
-## Running apps
+## Input data
 
-Specific uses of the AuTuMN framework are present in `apps/`. You can run an application through an IDE like PyCharm, or run it from the command line:
+Input data is stored in text format in the `data/inputs/` folder. All input data required to run the app should be stored in this folder, along with a README explaining its meaning and provenance. Input data is preprocessed into an SQLite database at runtime, inside the `autumn.inputs` module. A unique identified for the latest input data is stored in `data/inputs/input-hash.txt`. If you want to add new input data or modify existing data, then:
 
+- add or update the source CSV/XLS files
+- adjust the preprocess functions in `autumn.inputs` as required
+- rebuild the database, forcing a new file hash to be written
+
+To fetch the latest data, run:
+
+```bash
+python -m apps db fetch
 ```
-./scripts/run.ps1 --help
+
+You will need to ensure that the latest date in all user-specified mixing data params is greater than or equal to the most recent Google Mobility date.
+
+To rebuild the database with new data, run:
+
+```bash
+python -m apps db build --force
 ```
 
-# Old notes below: are these used anymore?
+Once you are satisfied that all your models work again (run the tests), commit your changes and push up:
 
-## TODO
+- The updated CSV files
+- The updated `input-hash.txt` file
+- Any required changes to model parameters (eg. dynamic mixing dates)
 
-- document Bulgaria interventions properly in handbook
-- the model would not run without age-stratification (detected when running Bulgaria)
+## AWS calibration
 
-## major outstanding tasks
+We often need to run long, computationally expensive jobs. We are currently using Amazon Web Services (AWS) to do this. The scripts and documentation that allow you to do this can be found in the `scripts/aws/` folder. The following jobs are run in AWS:
 
-- mapping to DALYs, QALYs
+- Calibration: Finding maximum likelihood parameters for some historical data using MCMC
+- Full model runs: Running all scenarios for all accepted MCMC parameter sets
+- PowerBI processing: Post-processing of full model runs for display in PowerBI
 
-## minor tasks
+All outputs, logs and plots for all model runs are stored in AWS S3, and they are publicly available at [this website](http://autumn-data.s3-website-ap-southeast-2.amazonaws.com). Application _should_ be uploaded if the app crashes midway.
 
-- simplify code for automatic detection of int_uncertainty start_time. Should use common method with optimisation start_dates
-- in the adjust_treatment_outcomes_support method, only the "relative" approach accounts for baseline intervention coverage
-  The "absolute" approach should be updated similarly in case we use it with a non-zero coverage at baseline.
+Each job is run on its own server, which is transient: it will be created for the job and will be destroyed at the end.
+
+The AWS tasks are run using [Luigi](https://luigi.readthedocs.io/en/stable/index.html), which is a tool for building data processing pipeline. The Luigi tasks can be found in the `tasks` folder.
+
+## Buildkite job runner
+
+We have a self-serve job-runner website available [here](https://buildkite.com/autumn), build on the [Buildkite](https://buildkite.com/home) platform. This website can be used to run jobs in AWS. Buildkite runs on a small persistent server in AWS. Buildkite configuration is stored in `scripts/buildkite/`.

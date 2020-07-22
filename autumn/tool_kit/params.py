@@ -2,79 +2,126 @@
 Used to load model parameters from file
 """
 import os
+import re
 import yaml
-import logging
-from autumn.tool_kit.utils import find_relative_date
+from copy import deepcopy
+from os import path
 
-from .utils import merge_dicts
+from autumn.constants import APPS_PATH
+from autumn.tool_kit.utils import merge_dicts
 
-logger = logging.getLogger(__file__)
 
-
-def revise_dates_if_ymd(mixing_params):
+def load_params(app_name: str, region_name: str):
     """
-    Find any mixing times parameters that were submitted as a three element list of year, month day - and revise to an
-    integer representing the number of days from the reference time.
+    Load  parameters for the requested app and region.
+    This is for loading only, please do not put any pre-processing in here.
+
+    The data structure returned by this function is a little wonky for
+    backwards compatibility reasons.
     """
-    for key in (k for k in mixing_params if k.endswith("_times")):
-        for i_time in (t for t in range(len(mixing_params[key])) if type(mixing_params[key][t]) == list):
-            mixing_params[key][i_time] = find_relative_date(mixing_params[key][i_time])
+
+    param_path = path.join(APPS_PATH, app_name, "params")
+    assert path.exists(param_path), f"App name {app_name} not found at {param_path}"
+    param_dirnames = [
+        d
+        for d in os.listdir(param_path)
+        if path.isdir(path.join(param_path, d)) and not d == "__pycache__"
+    ]
+    assert region_name in param_dirnames, f"Region name {region_name} is not in {param_dirnames}"
+    app_param_dir = path.join(param_path, region_name)
+
+    # Load base param config
+    base_yaml_path = path.join(param_path, "base.yml")
+    with open(base_yaml_path, "r") as f:
+        base_params = yaml.safe_load(f)
+
+    # Load app default param config
+    default_param_path = path.join(app_param_dir, "default.yml")
+    with open(default_param_path, "r") as f:
+        app_default_params = yaml.safe_load(f)
+
+    default_params = merge_dicts(app_default_params, base_params)
+
+    # Load scenario specific params for the given app
+    scenarios = {}
+    scenaro_params_fnames = [
+        fname
+        for fname in os.listdir(app_param_dir)
+        if fname.startswith("scenario-") and fname.endswith(".yml")
+    ]
+    for fname in scenaro_params_fnames:
+        scenario_idx = int(fname.split("-")[-1].split(".")[0])
+        yaml_path = path.join(app_param_dir, fname)
+        with open(yaml_path, "r") as f:
+            scenarios[scenario_idx] = yaml.safe_load(f)
+
+    # By convention this is outside of the default params
+    scenario_start_time = None
+    if "scenario_start_time" in default_params:
+        scenario_start_time = default_params["scenario_start_time"]
+        del default_params["scenario_start_time"]
+
+    # Return backwards-compatible data structure
+    return {
+        "default": default_params,
+        "scenarios": scenarios,
+        "scenario_start_time": scenario_start_time,
+    }
 
 
-def load_params(app_dir: str, application=None):
+def update_params(params: dict, updates: dict) -> dict:
     """
-    Load parameters for the application from the app directory.
+    Update parameter dict according to string based update requests in update dict.
+    Update requests made as follows:
 
-    By convention, the parameters will either be 
-        - in a single YAML file, named params.yml
-        - in a folder called 'params'
+        - dict entries updated as "key": val
+        - nested dict entries updated as "key1.key2": val
+        - array entries updated as "arr(0)": 1
 
-    If there is a folder called 'params', then there should be:
-        - a base YAML file called 'base.yml'
-        - a set of application specific YAML files,
-          each with the name of the application as the file name
+    Example
 
-    args:
-        app_dir: the directory that contains params.yml or params folder
-        application: the name of the application to be loaded,
-                     only used if there are multiple parameter sets
-    
+        params = {"foo": 1, "bar" {"baz": 2}, "bing": [1, 2]}
+        updates = {"foo": 2, "bar.baz": 3, "bing[1]": 4}
+        returns {"foo": 2, "bar" {"baz": 3}, "bing": [1, 4]}
+
+    See tests for more details.
     """
-    logger.debug(f"Loading params from app dir {app_dir} for application {application}")
-    if application:
-        # Users wants to load base parameters + application specific params
-        param_dir = os.path.join(app_dir, "params")
-        base_yaml_path = os.path.join(param_dir, "base.yml")
-        app_yaml_path = os.path.join(param_dir, f"{application}.yml")
-        if not os.path.exists(param_dir):
-            raise FileNotFoundError(f"Param dir not found at {param_dir}")
-        if not os.path.exists(base_yaml_path):
-            raise FileNotFoundError(f"Base param file not found at {base_yaml_path}")
-        if not os.path.exists(app_yaml_path):
-            raise FileNotFoundError(
-                f"Application {application} param file not found at {app_yaml_path}"
-            )
+    ps = deepcopy(params)
+    for key, val in updates.items():
+        ps = _update_params(ps, key, val)
 
-        with open(base_yaml_path, "r") as f:
-            base_params = yaml.safe_load(f)
-        with open(app_yaml_path, "r") as f:
-            app_params = yaml.safe_load(f) or {}
+    return ps
 
-        # Merge base and app params into one parameter set, with app params overwriting base params
-        params = merge_dicts(app_params, base_params)
 
+# Regex to match an array update request eg. "foo[1]"
+ARRAY_REQUEST_REGEX = r"^\w+\(-?\d\)$"
+
+
+def _update_params(params: dict, update_key: str, update_val) -> dict:
+    ps = deepcopy(params)
+    keys = update_key.split(".")
+    current_key, nested_keys = keys[0], keys[1:]
+    is_arr_update = re.match(ARRAY_REQUEST_REGEX, current_key)
+    is_nested_update = bool(nested_keys)
+    if is_arr_update and is_nested_update:
+        # Array item replacement followed by nested dictionary replacement.
+        key, idx_str = current_key.replace(")", "").split("(")
+        idx = int(idx_str)
+        child_key = ".".join(nested_keys)
+        ps[key][idx] = _update_params(ps[key][idx], child_key, update_val)
+    elif is_arr_update:
+        # Array item replacement.
+        key, idx_str = update_key.replace(")", "").split("(")
+        idx = int(idx_str)
+        ps[key][idx] = update_val
+    elif is_nested_update:
+        # Nested dictionary replacement.
+        child_key = ".".join(nested_keys)
+        key = current_key
+        ps[key] = _update_params(ps[key], child_key, update_val)
     else:
-        # User wants to load params from a single file, no fancy merging
-        param_yaml_path = os.path.join(app_dir, "params.yml")
-        if not os.path.exists(param_yaml_path):
-            raise FileNotFoundError(f"Param file not found at {param_yaml_path}")
+        # Simple key lookup, just replace key with val.
+        key = current_key
+        ps[key] = update_val
 
-        with open(param_yaml_path, "r") as f:
-            params = yaml.safe_load(f)
-
-    # Revise any dates for mixing matrices submitted in YMD format
-    for scenario in params:
-        if type(params[scenario]) == dict and "mixing" in params[scenario]:
-            revise_dates_if_ymd(params[scenario]["mixing"])
-
-    return params
+    return ps

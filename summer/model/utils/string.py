@@ -1,6 +1,7 @@
 """
 String manipulation functions
 """
+from functools import lru_cache
 
 
 def create_stratum_name(stratification_name, stratum_name, joining_string="X"):
@@ -63,27 +64,20 @@ def extract_reversed_x_positions(parameter):
     return result
 
 
-def find_stem(stratified_string, joining_string="X"):
+@lru_cache(maxsize=None)
+def find_stem(stratified_string: str):
     """
     find the stem of the compartment name as the text leading up to the first occurrence of the joining string
-        (usually "X")
     should run slightly faster than using find_name_components
-
-    :param stratified_string: str
-        the stratified string for the compartment or parameter name
-    :param joining_string: str
-        the string of interest whose character position will be used to truncate the stratified string
-    :return: int
-        the point at which the first occurrence of the joining string occurs
     """
-    index = (
-        stratified_string.find(joining_string)
-        if joining_string in stratified_string
-        else len(stratified_string)
-    )
-    return stratified_string[:index]
+    return stratified_string.split("X")[0]
 
 
+def find_all_strata(stratified_string: str):
+    return "X".join(find_name_components(stratified_string)[1:])
+
+
+@lru_cache(maxsize=None)
 def find_name_components(compartment):
     """
     extract all the components of a stratified compartment or parameter name, including the stem

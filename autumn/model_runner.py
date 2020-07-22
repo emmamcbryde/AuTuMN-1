@@ -1,29 +1,27 @@
 """
 Build and run any AuTuMN model, storing the outputs
-
-TODO: Add ability to re-load models and plot their results
-TODO: Add ability to load MCMC outputs and plot their results
-
 """
 import os
+import logging
 import yaml
 from datetime import datetime
 
-from autumn.post_processing.processor import post_process, validate_post_process_config
 
 from autumn import constants
-from autumn.outputs import save_flows_sheets, plot_scenarios, validate_plot_config
 from autumn.tool_kit.timer import Timer
+from autumn.tool_kit.serializer import serialize_model
 from autumn.tool_kit.scenarios import Scenario
 from autumn.tool_kit.utils import (
     get_git_branch,
     get_git_hash,
 )
-from autumn.tb_model import store_run_models
+from autumn.db.models import store_run_models
+
+logger = logging.getLogger(__name__)
 
 
 def build_model_runner(
-    model_name: str, build_model, params: dict, post_processing_config={}, plots_config={}
+    model_name: str, param_set_name: str, build_model, params: dict,
 ):
     """
     Factory function that returns a 'run_model' function.
@@ -32,21 +30,19 @@ def build_model_runner(
     assert build_model, "Value 'build_model' must be set."
     assert params, "Value 'params' must be set."
 
-    def run_model(run_name="model-run", run_description=""):
+    if not param_set_name:
+        param_set_name = "main-model"
+
+    def run_model(run_scenarios=True):
         """
         Run the model, save the outputs.
         """
-        print(f"Running {model_name}...")
-        if post_processing_config:
-            validate_post_process_config(post_processing_config)
-
-        if plots_config:
-            validate_plot_config(plots_config)
+        logger.info(f"Running {model_name} {param_set_name}...")
 
         # Ensure project folder exists.
-        project_dir = os.path.join(constants.DATA_PATH, model_name)
-        timestamp = datetime.now().strftime("%d-%m-%Y--%H-%M-%S")
-        output_dir = os.path.join(project_dir, f"{run_name}-{timestamp}")
+        project_dir = os.path.join(constants.OUTPUT_DATA_PATH, "run", model_name, param_set_name)
+        timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
+        output_dir = os.path.join(project_dir, timestamp)
         os.makedirs(output_dir, exist_ok=True)
 
         # Determine where to save model outputs
@@ -60,8 +56,8 @@ def build_model_runner(
         # Save model run metadata to output dir.
         meta_path = os.path.join(output_dir, "meta.yml")
         metadata = {
-            "name": run_name,
-            "description": run_description,
+            "model_name": model_name,
+            "param_set_name": param_set_name,
             "start_time": timestamp,
             "git_branch": get_git_branch(),
             "git_commit": get_git_hash(),
@@ -80,32 +76,29 @@ def build_model_runner(
             baseline_scenario = scenarios[0]
             baseline_scenario.run()
             baseline_model = baseline_scenario.model
+            save_serialized_model(baseline_model, output_dir, "baseline")
+
+            if not run_scenarios:
+                # Do not run non-baseline models
+                scenarios = scenarios[:1]
 
             # Run all the other scenarios
             for scenario in scenarios[1:]:
                 scenario.run(base_model=baseline_model)
+                name = f"scenario-{scenario.idx}"
+                save_serialized_model(scenario.model, output_dir, name)
 
         with Timer("Saving model outputs to the database"):
             models = [s.model for s in scenarios]
-            scenario_idxs = range(num_scenarios)
-            store_run_models(models, scenarios=scenario_idxs, database_name=output_db_path)
-
-        if post_processing_config:
-            with Timer("Applying post-processing to model outputs"):
-                # Calculate generated outputs with post-processing.
-                for scenario in scenarios:
-                    scenario.generated_outputs = post_process(
-                        scenario.model, post_processing_config
-                    )
-
-        if plots_config:
-            with Timer("Creating plots"):
-                # Plot all scenario outputs.
-                plot_dir = os.path.join(output_dir, "plots")
-                os.makedirs(plot_dir, exist_ok=True)
-                plot_scenarios(scenarios, plot_dir, plots_config)
-
-                # Save some CSV sheets describing the baseline model.
-                save_flows_sheets(baseline_model, output_dir)
+            store_run_models(models, output_db_path)
 
     return run_model
+
+
+def save_serialized_model(model, output_dir: str, name: str):
+    model_path = os.path.join(output_dir, "models")
+    os.makedirs(model_path, exist_ok=True)
+    model_filepath = os.path.join(model_path, f"{name}.yml")
+    model_data = serialize_model(model)
+    with open(model_filepath, "w") as f:
+        yaml.dump(model_data, f)

@@ -1,6 +1,7 @@
 # Data visualization
 matplotlib>=1.4.2
 seaborn==0.9.0
+joypy>=0.2.2
 
 # Numerical computing
 numpy>=1.14.1
@@ -8,6 +9,8 @@ pandas==0.24.2
 scipy==1.1.0
 pymc3==3.7  # Probabilistic programming
 xlrd>=1.2.0  # Reading Excel files via Pandas
+numba
+pyDOE>=0.3.8
 
 # Database access
 SQLAlchemy>=1.1.18
@@ -17,7 +20,17 @@ pyyaml==5.3
 python-slugify==4.0.0
 graphviz>=0.4.10
 cerberus==1.3.2
+streamlit==0.58.0
+tqdm
+pyDOE>=0.3.8
 
 # Testing
 pytest
 black
+
+# Cloud computing jobs
+sentry-sdk
+luigi
+
+# Debugging
+ipdb

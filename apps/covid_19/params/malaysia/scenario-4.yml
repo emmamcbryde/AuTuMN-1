@@ -1,0 +1,24 @@
+# 100% of labor force back into the office and schools reopen from July 2
+mixing:
+  work:
+    append: true
+    times:
+      - 2020-08-01
+    values:
+      - 1.
+  school:
+    append: false
+    times:
+      - 2020-03-03
+      - 2020-03-05
+      - 2020-06-23
+      - 2020-06-24 # Secondary examinations
+      - 2020-07-31
+      - 2020-08-01 # Reopen
+    values:
+      - 1.
+      - 0.
+      - 0.
+      - 0.1 # Secondary examinations
+      - 0.1
+      - 1. # Reopen

@@ -4,7 +4,13 @@ Validation performed using Cerberus: https://docs.python-cerberus.org/en/stable/
 """
 from cerberus import Validator
 
-from summer.constants import Compartment, Flow, BirthApproach, Stratification, IntegrationType
+from summer.constants import (
+    Compartment,
+    Flow,
+    BirthApproach,
+    Stratification,
+    IntegrationType,
+)
 
 
 def validate_model(model):
@@ -51,7 +57,7 @@ def get_model_schema(model):
         },
         "initial_conditions": {
             "type": "dict",
-            "valueschema": {"anyof_type": ["integer", "float"]},
+            "valuesrules": {"anyof_type": ["integer", "float"]},
             "check_with": check_initial_conditions(model),
         },
         "requested_flows": {
@@ -78,7 +84,7 @@ def get_model_schema(model):
         },
         "output_connections": {
             "type": "dict",
-            "valueschema": {
+            "valuesrules": {
                 "type": "dict",
                 "schema": {
                     "origin": {"type": "string"},
@@ -92,7 +98,7 @@ def get_model_schema(model):
             "type": "list",
             "schema": {"type": "list", "schema": {"type": "string"}},
         },
-        "derived_output_functions": {"type": "dict", "check_with": check_derived_output_functions},
+        "derived_output_functions": {"type": "dict", "check_with": check_derived_output_functions,},
     }
 
 
@@ -137,7 +143,9 @@ def check_initial_conditions(model):
         try:
             is_pop_too_small = sum(value.values()) > model.starting_population
             if is_pop_too_small:
-                error(field, "Initial condition population exceeds total starting population.")
+                error(
+                    field, "Initial condition population exceeds total starting population.",
+                )
 
             if not all([c in model.compartment_types for c in value.keys()]):
                 error(

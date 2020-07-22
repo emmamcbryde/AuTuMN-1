@@ -1,0 +1,57 @@
+iso3: BEL
+
+#start_time: -20.
+end_time: 214.
+scenario_start_time: 213
+
+infectious_seed: 200
+use_raw_mortality_estimates: True
+
+microdistancing:
+  function_type: tanh
+  parameters:
+    b: -0.05
+    c: 97.69638645735085
+    sigma: 0.6298824215547763
+
+# MLE estimates
+contact_rate: 0.042269216160951216
+start_time: 20.665475131004882
+npi_effectiveness:
+  other_locations: 0.9463824076969617
+compartment_periods_calculated:
+  incubation:
+    total_period: 3.0710556391076644
+  total_infectious:
+    total_period: 5.218990643399594
+tv_detection_b: 0.06423583269054811
+tv_detection_c: 94.53838202924926
+prop_detected_among_symptomatic: 0.11745668540194786
+icu_prop: 0.20308883880182196
+compartment_periods:
+  hospital_late: 7.939307834630262
+  icu_late: 7.911134772642174
+hospital_props_multiplier: 0.5334977033415524
+infection_fatality_props: [1.570338698487953e-05, 3.0185599227133567e-05, 9.310275211235058e-05, 0.0002110866561590354, 0.0005608966565357359, 0.001924450643895957, 0.006413971304306503, 0.02057237720948377, 0.14150687583779367]
+
+mixing:
+  school:
+    append: false
+    times:
+      - 2020-03-12
+      - 2020-03-13
+      - 2020-07-30
+    values:
+      - 1.0
+      - 0.1
+      - 0.1
+
+# Mapping of Google Mobility locations to Autumn-specific locations
+google_mobility_locations:
+  work:
+    - workplaces
+  other_locations:
+    # Parks not included
+    - retail_and_recreation
+    - grocery_and_pharmacy
+    - transit_stations
